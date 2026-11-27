@@ -1,0 +1,22 @@
+{
+  "eyebrow": "Turno C · Noche",
+  "titulo": "Observaciones Turno C",
+  "fecha": "viernes, 27 de noviembre de 2026",
+  "fechaCorte": "2026-11-27",
+  "responsable": "Freddy Pérez Toro",
+  "estadoPicking": "Finalizado",
+  "recepcionEquipos": "7:45 AM",
+  "equiposAsignados": 41,
+  "radiosAsignadas": 41,
+  "pasillos": [
+    {
+      "tipo": "LATA",
+      "empresa": "SAEP"
+    },
+    {
+      "tipo": "PETO",
+      "empresa": "HUMAN-NET"
+    }
+  ],
+  "noDevueltos": []
+}
