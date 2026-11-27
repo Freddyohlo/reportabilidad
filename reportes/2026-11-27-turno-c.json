@@ -18,5 +18,33 @@
       "empresa": "HUMAN-NET"
     }
   ],
-  "noDevueltos": []
+  "noDevueltos": [
+    {
+      "serie": "EP35071",
+      "codigo": "RA71",
+      "nombre": "BENJAMIN GUEVARA",
+      "observacion": "Sin observaciones",
+      "fecha": "2026-11-16",
+      "hora": "07:36:32",
+      "empresa": "HUMAN-NET"
+    },
+    {
+      "serie": "EP35114",
+      "codigo": "RA114",
+      "nombre": "Jonathan Miranda",
+      "observacion": "Sin observaciones",
+      "fecha": "2026-11-20",
+      "hora": "00:12:39",
+      "empresa": "TCCU"
+    },
+    {
+      "serie": "278TBB2972",
+      "codigo": "RA110",
+      "nombre": "Cristhopher Kalusa",
+      "observacion": "Sin observaciones",
+      "fecha": "2026-11-24",
+      "hora": "21:52:38",
+      "empresa": "SAEP"
+    }
+  ]
 }

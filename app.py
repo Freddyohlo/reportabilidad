@@ -17,18 +17,63 @@ import json
 import mimetypes
 import os
 import re
+import socket
 import subprocess
+import sys
+import threading
 import time
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE, "uploads")
 REPORT_DIR = os.path.join(BASE, "reportes")
-PORT = int(os.environ.get("PORT", "12000"))
+PUERTO_BASE = int(os.environ.get("PORT") or 12000)
 MAX_BYTES = 25 * 1024 * 1024
 ID_OK = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}$")
-CHROMIUM = "/usr/bin/chromium"
+
+# Chrome o Edge sirven igual para imprimir el PDF; en Windows Edge siempre esta.
+CANDIDATOS_NAVEGADOR = [
+    os.environ.get("CHROME_PATH", ""),
+    "/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome",
+    "/usr/bin/microsoft-edge", "/snap/bin/chromium",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+]
+
+
+def buscar_navegador():
+    """Devuelve la ruta de Chrome/Edge, o None si no hay."""
+    for ruta in CANDIDATOS_NAVEGADOR:
+        if ruta and os.path.isfile(ruta):
+            return ruta
+    if os.name == "nt":
+        for raiz in (os.environ.get("LOCALAPPDATA", ""), os.environ.get("PROGRAMFILES", ""),
+                     os.environ.get("PROGRAMFILES(X86)", "")):
+            for sub in (r"Google\Chrome\Application\chrome.exe",
+                        r"Microsoft\Edge\Application\msedge.exe"):
+                ruta = os.path.join(raiz, sub) if raiz else ""
+                if ruta and os.path.isfile(ruta):
+                    return ruta
+    return None
+
+
+NAVEGADOR = buscar_navegador()
+PUERTO_ACTUAL = PUERTO_BASE
+
+
+def puerto_libre(inicial: int, intentos: int = 20) -> int:
+    for p in range(inicial, inicial + intentos):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if s.connect_ex(("127.0.0.1", p)) != 0:
+                return p
+    return inicial
 
 STATIC = {
     "/reporte": "reporte.html",
@@ -199,13 +244,21 @@ def generar_pdf(rid: str) -> str:
         raise FileNotFoundError(rid)
     if os.path.isfile(destino) and os.path.getmtime(destino) > os.path.getmtime(origen):
         return destino
+    if not NAVEGADOR:
+        raise RuntimeError("no encontre Chrome ni Edge para generar el PDF")
     tmp = destino + ".tmp"
-    subprocess.run(
-        [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
-         f"--print-to-pdf={tmp}", "--virtual-time-budget=5000",
-         f"http://127.0.0.1:{PORT}/reporte?id={rid}"],
-        check=True, capture_output=True, timeout=90,
-    )
+    orden = [NAVEGADOR, "--headless", "--disable-gpu", "--no-pdf-header-footer",
+             f"--print-to-pdf={tmp}", "--virtual-time-budget=5000",
+             f"http://127.0.0.1:{PUERTO_ACTUAL}/reporte?id={rid}"]
+    # en contenedores el sandbox de Chromium suele fallar; se reintenta sin el
+    for extra in ([], ["--no-sandbox"]):
+        try:
+            subprocess.run(orden[:1] + extra + orden[1:],
+                           check=True, capture_output=True, timeout=120)
+            break
+        except subprocess.CalledProcessError:
+            if extra:
+                raise
     os.replace(tmp, destino)
     return destino
 
@@ -276,6 +329,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._file(generar_pdf(rid), "application/pdf")
             except FileNotFoundError:
                 return self._send(404, b"reporte no encontrado")
+            except RuntimeError as exc:
+                return self._send(500, str(exc).encode())
             except subprocess.SubprocessError as exc:
                 return self._send(500, f"error generando pdf: {exc}".encode())
 
@@ -341,8 +396,33 @@ class Handler(BaseHTTPRequestHandler):
         return candidato
 
 
+def abrir_navegador(url: str):
+    """Abre el editor en modo ventana (sin barra de direcciones) si se puede."""
+    if os.environ.get("NO_ABRIR"):
+        return
+    if NAVEGADOR:
+        try:
+            subprocess.Popen([NAVEGADOR, f"--app={url}", "--window-size=1440,1000"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+        except OSError:
+            pass
+    webbrowser.open(url)
+
+
 if __name__ == "__main__":
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     os.makedirs(REPORT_DIR, exist_ok=True)
-    print(f"escuchando en http://0.0.0.0:{PORT}", flush=True)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    PUERTO_ACTUAL = puerto_libre(PUERTO_BASE)
+    url = f"http://127.0.0.1:{PUERTO_ACTUAL}/editor"
+    print(f"Reportes STG/CCU en {url}", flush=True)
+    print(f"PDF: {'si (' + os.path.basename(NAVEGADOR) + ')' if NAVEGADOR else 'no (instala Chrome o Edge)'}", flush=True)
+    print("Cierra esta ventana para apagar el servidor.", flush=True)
+    threading.Timer(1.0, lambda: abrir_navegador(url)).start()
+    try:
+        ThreadingHTTPServer(("127.0.0.1", PUERTO_ACTUAL), Handler).serve_forever()
+    except KeyboardInterrupt:
+        print("\nchao", flush=True)
+    except OSError as exc:
+        print(f"No pude abrir el puerto {PUERTO_ACTUAL}: {exc}", flush=True)
+        sys.exit(1)
