@@ -3,10 +3,30 @@
 Genera el reporte de turno (STG Chile / CCU) a partir de los datos del sistema:
 resumen del turno, pasillos y equipos no devueltos, con PDF A4 listo para enviar.
 
+## Correrlo en tu PC (Windows)
+
+1. Descarga el repo: botón verde **Code** → **Download ZIP**, y descomprímelo en una
+   carpeta fija (por ejemplo `C:\Reportes`). Si lo dejas en Descargas, se puede borrar.
+2. Instala **Python 3** desde <https://www.python.org/downloads/>. En la primera pantalla
+   marca la casilla **"Add python.exe to PATH"** antes de continuar.
+3. Doble clic en **`Reportes.bat`**. Se abre solo el editor en una ventana sin barra de
+   direcciones, como una app.
+4. Para el **acceso directo**: clic derecho en `Reportes.bat` → *Enviar a* →
+   *Escritorio (crear acceso directo)*. Renómbralo a "Reportes".
+
+Para apagarlo, cierra la ventana negra que queda abierta atrás.
+
+- El **PDF** lo genera Chrome o Edge. Edge viene instalado en Windows 10/11, así que no
+  hay que instalar nada más. Si no encuentra ninguno, el botón avisa.
+- Los reportes quedan en la carpeta **`reportes\`** y los PDF al lado del JSON.
+- Si el puerto 12000 está ocupado, toma el siguiente libre solo.
+
+En macOS o Linux es igual, pero con `iniciar.sh`.
+
 ## Uso
 
 ```bash
-python3 app.py          # http://localhost:12000
+python3 app.py          # http://127.0.0.1:12000
 ```
 
 | Ruta | Qué hace |

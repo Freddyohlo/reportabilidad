@@ -456,6 +456,10 @@ function aviso(txt, tipo) {
 $("btn-save").onclick = async () => {
   const d = datos();
   if (!d.fechaCorte) return aviso("Falta la fecha del turno.", "err");
+  if (!d.noDevueltos.length &&
+      !confirm("No hay equipos pendientes cargados.\n¿Guardar el reporte así?")) {
+    return aviso("Guardado cancelado.", "err");
+  }
   aviso("Guardando…");
   try {
     const r = await fetch("/api/reportes", {
