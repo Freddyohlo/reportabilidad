@@ -1,0 +1,7 @@
+uploads/*
+!uploads/.gitkeep
+server.log
+__pycache__/
+.preview*.png
+reportes/*.pdf
+reportabilidad.zip

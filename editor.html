@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generador de reporte de turno</title>
+<style>
+:root{
+  --ccu-dark:#013c06; --ccu-deep:#0b4d0f; --ccu-mid:#3f6b0a; --ccu-lime:#97c000; --stg:#003474;
+  --ink:#13200f; --ink-2:#46523f; --muted:#67735e;
+  --line:#dbe0d2; --line-2:#ecefe5; --bg:#eaede2; --card:#fff;
+  --crit:#b42318; --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'DejaVu Sans',sans-serif;
+  background:var(--bg);color:var(--ink);font-size:14px;
+  -webkit-font-smoothing:antialiased;
+}
+.topbar{
+  display:flex;align-items:center;gap:14px;padding:12px 20px;background:#fff;
+  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;
+}
+.topbar .brand{font-weight:800;color:var(--ccu-dark);letter-spacing:-.02em}
+.topbar .brand span{font-weight:400;font-size:11px;letter-spacing:.08em;color:var(--muted);margin-left:6px}
+.topbar .sep{width:1px;height:18px;background:var(--line)}
+.topbar h1{font-size:14px;font-weight:650;margin:0;color:var(--ink-2)}
+.topbar .spacer{flex:1}
+.topbar a{font-size:13px;color:var(--ink-2);text-decoration:none;padding:6px 10px;border-radius:8px}
+.topbar a:hover{background:#f4f5f2;color:var(--ink)}
+
+.wrap{display:grid;grid-template-columns:minmax(420px,46%) 1fr;gap:0;height:calc(100vh - 49px)}
+.panel-form{overflow-y:auto;padding:20px 20px 90px;border-right:1px solid var(--line);background:#f8f9f4}
+.panel-prev{overflow:auto;padding:20px;background:var(--bg)}
+
+fieldset{border:0;padding:0;margin:0 0 22px}
+legend, .lg{
+  font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ccu-mid);
+  padding:0;margin-bottom:10px;display:block;
+}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+label{display:block;font-size:11px;font-weight:600;color:var(--ink-2);margin-bottom:4px}
+input,select,textarea{
+  font:inherit;font-size:13px;width:100%;padding:7px 9px;border:1px solid var(--line);
+  border-radius:8px;background:#fff;color:var(--ink);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid #cfe3a6;outline-offset:1px;border-color:var(--ccu-lime)}
+textarea{resize:vertical;min-height:84px;font-family:'DejaVu Sans Mono',ui-monospace,monospace;font-size:11.5px;line-height:1.5}
+.field{margin-bottom:10px}
+.hint{font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.45}
+
+button{font:inherit;font-size:13px;font-weight:600;cursor:pointer;border-radius:9px;padding:8px 14px;border:1px solid var(--line);background:#fff;color:var(--ink-2)}
+button:hover{background:#f4f5f2}
+.btn-primary{background:var(--ccu-dark);border-color:var(--ccu-dark);color:#fff}
+.btn-primary:hover{background:var(--ccu-deep);border-color:var(--ccu-deep)}
+.btn-sm{padding:5px 10px;font-size:12px;font-weight:500}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+.filas{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.fila{
+  position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  background:#fbfcf7;border:1px solid var(--line-2);border-radius:10px;padding:10px 34px 10px 10px;
+}
+.fila .f{min-width:0}
+.fila label{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.fila input{font-size:12px;padding:5px 7px}
+.fila .del{
+  position:absolute;top:6px;right:6px;border:0;background:transparent;color:#9aa894;
+  font-size:16px;line-height:1;padding:2px 5px;cursor:pointer;border-radius:6px;
+}
+.fila .del:hover{background:#fef3f2;color:var(--crit)}
+.empty{font-size:12px;color:var(--muted);padding:14px;text-align:center;border:1px dashed var(--line);border-radius:9px}
+
+.barra{
+  position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+  padding:10px 20px;display:flex;align-items:center;gap:10px;z-index:30;
+}
+.barra .msg{font-size:12px;color:var(--ink-2)}
+.barra .msg.ok{color:var(--ccu-mid);font-weight:600}
+.barra .msg.err{color:var(--crit);font-weight:600}
+.barra .spacer{flex:1}
+
+.preview-shell{width:100%;display:flex;justify-content:center}
+.preview-frame{transform-origin:top center;border:0;background:transparent}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr;height:auto}
+  .panel-form{border-right:0}
+  .panel-prev{display:none}
+  .barra{position:static;margin-top:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">STG<span>CHILE</span></span>
+  <span class="sep"></span>
+  <span class="brand" style="color:var(--ccu-dark)">CCU</span>
+  <span class="sep"></span>
+  <h1>Generador de reporte de turno</h1>
+  <span class="spacer"></span>
+  <a href="/historial">Historial</a>
+  <a href="/">Fotos</a>
+</div>
+
+<div class="wrap">
+  <div class="panel-form">
+
+    <fieldset>
+      <span class="lg">01 · Datos del turno</span>
+      <div class="card">
+        <div class="grid2">
+          <div class="field">
+            <label for="fecha">Fecha del turno</label>
+            <input type="date" id="fecha">
+          </div>
+          <div class="field">
+            <label for="turno">Turno</label>
+            <select id="turno">
+              <option value="A">Turno A</option>
+              <option value="B">Turno B</option>
+              <option value="C" selected>Turno C</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="responsable">Responsable</label>
+            <input type="text" id="responsable" placeholder="Freddy Pérez Toro">
+          </div>
+          <div class="field">
+            <label for="estado">Estado picking</label>
+            <input type="text" id="estado" placeholder="Finalizado">
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label for="hora">Hora término picking</label>
+            <input type="time" id="hora">
+          </div>
+          <div class="field">
+            <label for="equipos">Equipos asignados</label>
+            <input type="number" id="equipos" min="0" placeholder="41">
+          </div>
+          <div class="field">
+            <label for="radios">Radios asignadas</label>
+            <input type="number" id="radios" min="0" placeholder="41">
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="lata">Pasillo LATA</label>
+            <input type="text" id="lata" placeholder="SAEP">
+          </div>
+          <div class="field">
+            <label for="peto">Pasillo PETO</label>
+            <input type="text" id="peto" placeholder="HUMAN-NET">
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <span class="lg">02 · Equipos no devueltos</span>
+      <div class="card">
+        <label for="pegar">Pegar desde Excel / Sheets (o subir CSV)</label>
+        <textarea id="pegar" placeholder="Numero Serie&#9;Cod. Interno&#9;Nombre&#9;Observacion&#9;Fecha&#9;Hora&#9;Empresa&#10;EP35071&#9;RA71&#9;BENJAMIN GUEVARA&#9;Sin Observaciones&#9;16/11/2026&#9;07:36:32&#9;HUMAN-NET"></textarea>
+        <div class="row-actions">
+          <button class="btn-sm" id="btn-parse">Cargar filas pegadas</button>
+          <label class="btn-sm" style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-weight:500;margin:0;cursor:pointer">
+            Subir CSV <input type="file" id="file" accept=".csv,.tsv,.txt" hidden>
+          </label>
+          <button class="btn-sm" id="btn-add">+ Agregar equipo</button>
+        </div>
+        <p class="hint">Copia la tabla del sistema y pégala tal cual: detecto las columnas por el encabezado (serie, código, nombre, observación, fecha, hora, empresa).</p>
+
+        <div class="filas" id="filas"></div>
+      </div>
+    </fieldset>
+
+  </div>
+
+  <div class="panel-prev">
+    <div class="preview-shell"><iframe class="preview-frame" id="prev" src="/reporte" title="Vista previa del reporte"></iframe></div>
+  </div>
+</div>
+
+<div class="barra">
+  <button class="btn-primary" id="btn-save">Guardar reporte</button>
+  <button id="btn-pdf" disabled>Abrir PDF</button>
+  <button id="btn-final" disabled>Ver versión final</button>
+  <span class="msg" id="msg"></span>
+  <span class="spacer"></span>
+  <span class="msg" id="cnt"></span>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DIAS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+
+let filas = [];
+let guardadoId = null;
+
+/* ---------- utilidades ---------- */
+const normFecha = v => {
+  if (!v) return "";
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) {
+    const y = m[3].length === 2 ? "20" + m[3] : m[3];
+    return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  return "";
+};
+const fmtLargo = iso => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return `${DIAS[dt.getUTCDay()]}, ${d} de ${MESES[m - 1]} de ${y}`;
+};
+const horaAmPm = v => {
+  if (!v) return "";
+  const [h, mi] = v.split(":").map(Number);
+  const suf = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(mi).padStart(2,"0")} ${suf}`;
+};
+
+/* ---------- datos del formulario -> DATA ---------- */
+function datos() {
+  const fechaISO = $("fecha").value;
+  const turno = $("turno").value;
+  return {
+    eyebrow: `Turno ${turno} · Noche`,
+    titulo: `Observaciones Turno ${turno}`,
+    fecha: fmtLargo(fechaISO),
+    fechaCorte: fechaISO,
+    responsable: $("responsable").value.trim(),
+    estadoPicking: $("estado").value.trim() || "—",
+    recepcionEquipos: horaAmPm($("hora").value),
+    equiposAsignados: Number($("equipos").value || 0),
+    radiosAsignadas: Number($("radios").value || 0),
+    pasillos: [
+      { tipo: "LATA", empresa: $("lata").value.trim() },
+      { tipo: "PETO", empresa: $("peto").value.trim() }
+    ],
+    noDevueltos: filas
+      .filter(f => (f.serie || f.nombre || f.codigo))
+      .map(f => ({ ...f, fecha: normFecha(f.fecha) }))
+  };
+}
+
+let tPrev;
+function pintarPreview() {
+  clearTimeout(tPrev);
+  tPrev = setTimeout(() => {
+    const d = datos();
+    $("prev").contentWindow.postMessage({ type: "datos", payload: d }, "*");
+    $("cnt").textContent = `${d.noDevueltos.length} equipo(s) pendiente(s)`;
+  }, 120);
+}
+
+/* ---------- filas editables ---------- */
+const CAMPOS = [
+  ["serie", "N° serie", "EP35071"],
+  ["codigo", "Código", "RA71"],
+  ["nombre", "Nombre", "BENJAMIN GUEVARA"],
+  ["empresa", "Empresa", "HUMAN-NET"],
+  ["fecha", "Fecha", "16/11/2026"],
+  ["hora", "Hora", "07:36:32"],
+  ["observacion", "Observación", "Sin observaciones"]
+];
+
+function pintarFilas() {
+  const cont = $("filas");
+  if (!filas.length) {
+    cont.innerHTML = `<div class="empty">Sin equipos pendientes. Pega la tabla arriba o agrega uno.</div>`;
+    return;
+  }
+  cont.innerHTML = filas.map((f, i) => `
+    <div class="fila">
+      ${CAMPOS.map(([k, etiqueta, ph]) => `<div class="f"><label>${etiqueta}</label><input data-i="${i}" data-k="${k}" value="${(f[k] || "").replace(/"/g, "&quot;")}" placeholder="${ph}"></div>`).join("")}
+      <button class="del" data-del="${i}" title="Quitar equipo">×</button>
+    </div>`).join("");
+}
+
+$("filas").addEventListener("input", e => {
+  const i = e.target.dataset.i, k = e.target.dataset.k;
+  if (i === undefined) return;
+  filas[i][k] = e.target.value;
+  pintarPreview();
+});
+$("filas").addEventListener("click", e => {
+  const i = e.target.dataset.del;
+  if (i === undefined) return;
+  filas.splice(Number(i), 1);
+  pintarFilas(); pintarPreview();
+});
+
+/* ---------- parseo de tabla pegada ---------- */
+const CLAVES = [
+  ["serie", /serie|serial|n[°º]?\s*serie/i],
+  ["codigo", /c[oó]d|interno/i],
+  ["nombre", /nombre|usuario|responsable/i],
+  ["observacion", /observ/i],
+  ["fecha", /fecha/i],
+  ["hora", /hora/i],
+  ["empresa", /empresa|contratista/i]
+];
+const ORDEN = ["serie", "codigo", "nombre", "observacion", "fecha", "hora", "empresa"];
+
+function dividir(linea, delim) {
+  const out = [];
+  let cur = "", entre = false;
+  for (let i = 0; i < linea.length; i++) {
+    const c = linea[i];
+    if (entre) {
+      if (c === '"') {
+        if (linea[i + 1] === '"') { cur += '"'; i++; } else entre = false;
+      } else cur += c;
+    } else if (c === '"') entre = true;
+    else if (c === delim) { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out.map(v => v.trim());
+}
+
+const ES_FECHA = v => /^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/.test(v) || /^\d{4}-\d{1,2}-\d{1,2}$/.test(v);
+const ES_HORA = v => /^\d{1,2}:\d{2}(:\d{2})?$/.test(v);
+
+// orden en que se resuelven las columnas cuando no hay encabezado
+const PRIORIDAD = ["fecha", "hora", "empresa", "observacion", "serie", "codigo", "nombre"];
+
+function detectarColumnas(crudas) {
+  const ancho = Math.max(...crudas.map(f => f.length));
+  const cols = [...Array(ancho).keys()].map(i => crudas.map(f => (f[i] || "").trim()).filter(Boolean));
+  const puntaje = {
+    fecha: c => c.filter(ES_FECHA).length,
+    hora: c => c.filter(ES_HORA).length,
+    empresa: c => 2 * c.filter(v => /^(human-?net|tccu|saep)$/i.test(v)).length
+                  + c.filter(v => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\-& ]{2,}$/.test(v) && !/\d/.test(v)).length,
+    observacion: c => 3 * c.filter(v => /observ/i.test(v)).length,
+    codigo: c => c.filter(v => /^[A-Za-z]{1,3}\d{1,4}$/.test(v)).length,
+    nombre: c => c.filter(v => /^[A-Za-zÁÉÍÓÚÑáéíóúñ' ]{4,}$/.test(v) && v.includes(" ")).length,
+    serie: c => c.filter(v => /^[A-Za-z0-9]{3,}$/.test(v) && /\d/.test(v) && /[A-Za-z]/.test(v)).length
+  };
+  const usadas = new Set();
+  const mapa = {};
+  const largo = cols.map(c => c.length ? c.reduce((a, v) => a + v.length, 0) / c.length : 0);
+  for (const campo of PRIORIDAD) {
+    let mejor = -1, idx = -1, largoMejor = 0;
+    cols.forEach((c, i) => {
+      if (usadas.has(i)) return;
+      const p = puntaje[campo](c);
+      // a igual puntaje gana la columna con valores mas largos (serie antes que codigo)
+      if (p > mejor || (p === mejor && p > 0 && largo[i] > largoMejor)) {
+        mejor = p; idx = i; largoMejor = largo[i];
+      }
+    });
+    if (idx >= 0 && mejor > 0) { mapa[idx] = campo; usadas.add(idx); }
+  }
+  // ninguna columna queda sin destino: preferimos mostrar de mas a perder datos
+  const faltan = ORDEN.filter(k => !Object.values(mapa).includes(k));
+  cols.forEach((_, i) => {
+    if (!usadas.has(i) && faltan.length) { mapa[i] = faltan.shift(); usadas.add(i); }
+  });
+  return { mapa, detectado: usadas.size >= 3 };
+}
+
+function parseTabla(texto) {
+  const lineas = texto.split(/\r?\n/).filter(l => l.trim());
+  if (!lineas.length) return { filas: [], detectado: true };
+
+  const delim = lineas[0].includes("\t") ? "\t" : lineas[0].includes(";") ? ";" : ",";
+  const crudas = lineas.map(l => dividir(l, delim));
+
+  // 1) encabezado reconocible por nombre de columna
+  const primera = crudas[0].map(c => c.toLowerCase());
+  const aciertos = primera.filter(c => CLAVES.some(([, re]) => re.test(c))).length;
+  let mapa = null;
+  let desde = 0;
+  if (aciertos >= 2) {
+    mapa = {};
+    primera.forEach((c, i) => {
+      const clave = (CLAVES.find(([, re]) => re.test(c)) || [null])[0];
+      if (clave) mapa[i] = clave;
+    });
+    desde = 1;
+  }
+
+  // 2) sin encabezado: deducir por contenido
+  let detectado = true;
+  if (!mapa) {
+    const det = detectarColumnas(crudas);
+    mapa = det.mapa;
+    detectado = det.detectado;
+    if (!detectado) {
+      mapa = {};
+      ORDEN.forEach((k, i) => { mapa[i] = k; });
+    }
+  }
+
+  const filas = crudas.slice(desde).map(c => {
+    const o = {};
+    Object.entries(mapa).forEach(([i, k]) => { o[k] = (c[Number(i)] || "").trim(); });
+    return o;
+  }).filter(o => Object.values(o).some(v => v));
+
+  return { filas, detectado };
+}
+
+$("btn-parse").onclick = () => {
+  const { filas: nuevas, detectado } = parseTabla($("pegar").value);
+  if (!nuevas.length) return aviso("No encontré filas en el texto pegado.", "err");
+  filas = filas.concat(nuevas);
+  $("pegar").value = "";
+  pintarFilas(); pintarPreview();
+  aviso(detectado
+    ? `${nuevas.length} fila(s) cargada(s). Revisa que las columnas calcen.`
+    : `${nuevas.length} fila(s) cargada(s) con el orden por defecto. Revisa las columnas.`,
+    detectado ? "ok" : "err");
+};
+
+$("file").onchange = async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const txt = await f.text();
+  const { filas: nuevas, detectado } = parseTabla(txt);
+  if (!nuevas.length) return aviso("El archivo no tiene filas reconocibles.", "err");
+  filas = filas.concat(nuevas);
+  pintarFilas(); pintarPreview();
+  aviso(`${nuevas.length} fila(s) desde ${f.name}${detectado ? "" : " (orden por defecto, revisa las columnas)"}.`,
+        detectado ? "ok" : "err");
+  e.target.value = "";
+};
+
+$("btn-add").onclick = () => {
+  filas.push({ serie: "", codigo: "", nombre: "", empresa: "", fecha: $("fecha").value || "", hora: "", observacion: "Sin observaciones" });
+  pintarFilas(); pintarPreview();
+};
+
+/* ---------- guardar ---------- */
+function aviso(txt, tipo) {
+  const m = $("msg");
+  m.textContent = txt;
+  m.className = "msg " + (tipo || "");
+}
+
+$("btn-save").onclick = async () => {
+  const d = datos();
+  if (!d.fechaCorte) return aviso("Falta la fecha del turno.", "err");
+  aviso("Guardando…");
+  try {
+    const r = await fetch("/api/reportes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: guardadoId, data: d })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const out = await r.json();
+    guardadoId = out.id;
+    $("btn-pdf").disabled = false;
+    $("btn-final").disabled = false;
+    aviso(`Guardado como ${out.id}.`, "ok");
+    history.replaceState(null, "", "/editor?id=" + encodeURIComponent(out.id));
+  } catch (err) {
+    aviso("No se pudo guardar: " + err.message, "err");
+  }
+};
+$("btn-pdf").onclick = () => { if (guardadoId) window.open("/reporte.pdf?id=" + encodeURIComponent(guardadoId), "_blank"); };
+$("btn-final").onclick = () => { if (guardadoId) window.open("/reporte?id=" + encodeURIComponent(guardadoId), "_blank"); };
+
+/* ---------- init ---------- */
+["fecha","turno","responsable","estado","hora","equipos","radios","lata","peto"]
+  .forEach(id => $(id).addEventListener("input", pintarPreview));
+
+function escalarPreview() {
+  const cont = document.querySelector(".panel-prev");
+  const marco = $("prev");
+  const disp = cont.clientWidth - 40;
+  const s = Math.min(1, disp / 794);
+  marco.style.width = "794px";
+  marco.style.height = "1123px";
+  marco.style.transform = `scale(${s})`;
+  marco.style.marginBottom = `${(s - 1) * 1123}px`;
+}
+window.addEventListener("resize", escalarPreview);
+
+async function init() {
+  const id = new URLSearchParams(location.search).get("id");
+  let d = null;
+  if (id) {
+    const r = await fetch("/api/reportes/" + encodeURIComponent(id));
+    if (r.ok) { d = await r.json(); guardadoId = id; }
+  }
+  if (!d) {
+    const hoy = new Date();
+    d = {
+      fechaCorte: hoy.toISOString().slice(0, 10),
+      turno: "C", responsable: "Freddy Pérez Toro", estadoPicking: "Finalizado",
+      recepcionEquipos: "7:45 AM", equiposAsignados: 41, radiosAsignadas: 41,
+      pasillos: [{ tipo: "LATA", empresa: "SAEP" }, { tipo: "PETO", empresa: "HUMAN-NET" }],
+      noDevueltos: []
+    };
+  }
+  $("fecha").value = d.fechaCorte || "";
+  $("turno").value = (d.titulo || "Turno C").replace(/\D/g, "") || "C";
+  $("responsable").value = d.responsable || "";
+  $("estado").value = d.estadoPicking || "";
+  $("equipos").value = d.equiposAsignados ?? "";
+  $("radios").value = d.radiosAsignadas ?? "";
+  $("lata").value = (d.pasillos && d.pasillos[0] && d.pasillos[0].empresa) || "";
+  $("peto").value = (d.pasillos && d.pasillos[1] && d.pasillos[1].empresa) || "";
+  const m = (d.recepcionEquipos || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (m) {
+    let h = Number(m[1]);
+    if (m[3] && /pm/i.test(m[3]) && h < 12) h += 12;
+    if (m[3] && /am/i.test(m[3]) && h === 12) h = 0;
+    $("hora").value = `${String(h).padStart(2, "0")}:${m[2]}`;
+  }
+  filas = (d.noDevueltos || []).map(f => ({ ...f, fecha: f.fecha ? f.fecha.split("-").reverse().join("/") : "" }));
+  pintarFilas();
+  escalarPreview();
+  const marco = $("prev");
+  const enviar = () => marco.contentWindow.postMessage({ type: "datos", payload: datos() }, "*");
+  if (marco.contentDocument && marco.contentDocument.readyState === "complete") setTimeout(enviar, 200);
+  marco.addEventListener("load", () => setTimeout(enviar, 100));
+  pintarPreview();
+}
+init();
+</script>
+</body>
+</html>
